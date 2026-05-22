@@ -1,0 +1,13 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/$USER/public_html/
+    - /bin/cp -R * $DEPLOYPATH
+    - /bin/chmod 644 $DEPLOYPATH*.html
+    - /bin/chmod 644 $DEPLOYPATH*.txt
+    - /bin/chmod 644 $DEPLOYPATH*.xml
+    - /bin/chmod 644 $DEPLOYPATH*.json
+    - /bin/chmod 644 $DEPLOYPATH.htaccess
+    - /bin/chmod -R 755 $DEPLOYPATH/css/
+    - /bin/chmod -R 755 $DEPLOYPATH/js/
+    - /bin/chmod -R 755 $DEPLOYPATH/assets/

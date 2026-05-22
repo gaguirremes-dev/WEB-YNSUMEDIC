@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Disallow: /includes/
+Disallow: /data/
+Disallow: /*.json$
+
+Sitemap: https://ynsumedic.com/sitemap.xml
