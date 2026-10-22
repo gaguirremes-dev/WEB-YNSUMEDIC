@@ -113,6 +113,17 @@ def main() -> None:
     logo.save(logo_path, optimize=True)
     print(f"logo-ynsumedic.png {logo.size} {logo_path.stat().st_size // 1024}KB")
 
+    # Full lockup in pure white for dark backgrounds (footer).
+    lockup = master.crop(alpha_bbox(master))
+    pad = round(max(lockup.size) * 0.04)
+    canvas = Image.new("RGBA", (lockup.width + 2 * pad, lockup.height + 2 * pad), (0, 0, 0, 0))
+    canvas.paste(lockup, (pad, pad), lockup)
+    white = to_white(canvas)
+    white = fit_width(white, 480)
+    white_path = ROOT / "assets/logos/logo-ynsumedic-blanco.png"
+    white.save(white_path, optimize=True)
+    print(f"logo-ynsumedic-blanco.png {white.size} {white_path.stat().st_size // 1024}KB")
+
     cover = build_cover(to_white(master.crop(bands[0])), to_white(master.crop(bands[-1])))
     cover_path = ROOT / "assets/img/og-cover.jpg"
     cover_path.parent.mkdir(parents=True, exist_ok=True)

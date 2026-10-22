@@ -161,26 +161,60 @@ input,textarea,select { font-family: inherit; }
 .btn-lg { padding: 1rem 2.4rem; font-size: 1.05rem; }
 .btn-sm { padding: .5rem 1.3rem; font-size: .85rem; }
 
-/* ── Navbar ──────────────────────────────────── */
+/* ── Navbar flotante ─────────────────────────── */
 .navbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-  padding: 1.3rem 0; transition: var(--tr);
+  padding: 1rem 0; transition: var(--tr);
 }
-.navbar.scrolled {
-  background: rgba(255,255,255,.97); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  padding: .8rem 0; box-shadow: 0 1px 24px rgba(0,0,0,.09);
+/* La barra es una píldora que flota sobre el hero, no una franja a todo el ancho */
+.nb-inner {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+  padding: .45rem .5rem .45rem .55rem;
+  border-radius: 999px;
+  background: rgba(11, 23, 45, .55);
+  border: 1px solid rgba(255, 255, 255, .14);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 10px 30px rgba(3, 10, 25, .3);
+  transition: var(--tr);
 }
-.nb-inner { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
-.nb-logo  { display: flex; align-items: center; flex-shrink: 0; }
-/* Marca doble: blanca sobre el hero oscuro, original al solidificarse la barra */
-.nb-logo-mark { position: relative; display: block; width: 46px; height: 46px; }
-.nb-logo-mark img {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: contain; transition: opacity .3s ease;
+.navbar.scrolled .nb-inner {
+  background: rgba(255, 255, 255, .94);
+  border-color: rgba(15, 23, 42, .07);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, .16);
 }
-.nb-logo-mark .mark-color { opacity: 0; }
-.navbar.scrolled .nb-logo-mark .mark-color { opacity: 1; }
-.navbar.scrolled .nb-logo-mark .mark-white { opacity: 0; }
+
+.nb-logo { display: flex; align-items: center; gap: .7rem; flex-shrink: 0; padding-right: .35rem; }
+/* Badge circular: le da contraste propio al isotipo sobre cualquier fondo */
+.nb-logo-badge {
+  position: relative; display: grid; place-items: center;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: rgba(255, 255, 255, .13);
+  border: 1px solid rgba(255, 255, 255, .42);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .26);
+  transition: var(--tr);
+}
+.nb-logo-badge img {
+  position: absolute; width: 84%; height: 84%; object-fit: contain;
+  transition: opacity .3s ease;
+}
+.nb-logo-badge .mark-color { opacity: 0; }
+.navbar.scrolled .nb-logo-badge {
+  background: var(--white);
+  border-color: rgba(15, 23, 42, .07);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .12);
+}
+.navbar.scrolled .nb-logo-badge .mark-color { opacity: 1; }
+.navbar.scrolled .nb-logo-badge .mark-white { opacity: 0; }
+
+/* Wordmark: todo blanco sobre el hero, colores de marca al solidificarse */
+.nb-logo-text {
+  font-size: 1.15rem; font-weight: 800; letter-spacing: -.03em;
+  color: var(--white); white-space: nowrap;
+}
+.nb-logo-text span { transition: color .3s ease; }
+.navbar.scrolled .nb-logo-text .w-blue  { color: var(--blue-600); }
+.navbar.scrolled .nb-logo-text .w-green { color: var(--green-600); }
 
 .nb-nav { display: flex; align-items: center; gap: .15rem; }
 .nb-nav a {
@@ -222,6 +256,9 @@ input,textarea,select { font-family: inherit; }
   border-top: 0 solid var(--gray-100); /* se activa con .open */
   max-height: 0;
   overflow: hidden;
+  margin: .5rem 1rem 0;
+  border-radius: 20px;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, .18);
   transition:
     max-height .38s cubic-bezier(.4, 0, .2, 1),
     border-top-width .38s cubic-bezier(.4, 0, .2, 1);
@@ -236,6 +273,9 @@ input,textarea,select { font-family: inherit; }
   flex-shrink: 0;
 }
 .nb-mobile a:hover { color: var(--green-600); background: var(--green-50); }
+/* El CTA hereda el gris de .nb-mobile a: hay que devolverle el blanco del botón */
+.nb-mobile a.btn { color: var(--white); }
+.nb-mobile a.btn:hover { background: var(--grad-green); color: var(--white); }
 .nb-mobile .btn { margin: .75rem 1.5rem; flex-shrink: 0; }
 
 /* ── Hero ────────────────────────────────────── */
@@ -563,8 +603,8 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 3rem;
   border-bottom: 1px solid rgba(255,255,255,.07);
 }
-.foot-logo { display: flex; align-items: center; margin-bottom: 1rem; }
-.foot-logo img { height: 46px; width: auto; }
+.foot-logo { display: flex; align-items: center; margin-bottom: 1.1rem; }
+.foot-logo img { width: 168px; height: auto; }
 .foot-desc { font-size: .88rem; color: rgba(255,255,255,.52); line-height: 1.72; margin-bottom: 1.5rem; }
 .foot-social { display: flex; gap: .6rem; }
 .foot-soc-link {
@@ -647,7 +687,7 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   .nb-ham { display: flex; }
 
   /* Asegurar que la barra de nav no desborde */
-  .nb-inner { gap: .75rem; }
+  .nb-inner { gap: .75rem; padding: .35rem .4rem .35rem .45rem; }
 
   /* Grids pasan a 1 columna */
   .srv-grid, .prod-grid, .test-grid, .blog-grid, .ben-grid { grid-template-columns: 1fr; }
@@ -690,7 +730,8 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   .cta-actions .btn { width: 100%; justify-content: center; }
 
   /* Logo un poco más compacto en móvil pequeño */
-  .nb-logo-mark { width: 36px; height: 36px; }
+  .nb-logo-badge { width: 42px; height: 42px; }
+  .nb-logo-text { font-size: 1rem; }
 
   /* Section padding más compacto */
   :root { --py: 2.5rem; }
