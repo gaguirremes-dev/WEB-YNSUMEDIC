@@ -3,6 +3,8 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/$USER/public_html/
     - /bin/cp -R * $DEPLOYPATH
+    # Masters de marca (6000px) y script de generación: no se publican
+    - /bin/rm -rf ${DEPLOYPATH}_brand-source ${DEPLOYPATH}scripts
     - /bin/chmod 644 $DEPLOYPATH*.html
     - /bin/chmod 644 $DEPLOYPATH*.txt
     - /bin/chmod 644 $DEPLOYPATH*.xml
