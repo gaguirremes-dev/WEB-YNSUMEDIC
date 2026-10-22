@@ -17,6 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function initNavbar() {
   const nav = document.getElementById('navbar');
   if (!nav) return;
+  /* Páginas con hero claro: la barra queda sólida desde el inicio,
+     porque el logo blanco y los links blancos no se leerían. */
+  if (nav.hasAttribute('data-nav-solid')) {
+    nav.classList.add('scrolled');
+    return;
+  }
   const update = () => nav.classList.toggle('scrolled', window.scrollY > 55);
   window.addEventListener('scroll', update, { passive: true });
   update();

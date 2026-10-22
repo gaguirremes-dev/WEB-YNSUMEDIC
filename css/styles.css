@@ -171,11 +171,16 @@ input,textarea,select { font-family: inherit; }
   padding: .8rem 0; box-shadow: 0 1px 24px rgba(0,0,0,.09);
 }
 .nb-inner { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
-.nb-logo  { display: flex; align-items: center; gap: .75rem; flex-shrink: 0; }
-.nb-logo img { height: 42px; width: auto; }
-.nb-logo-text { font-size: 1.55rem; font-weight: 800; letter-spacing: -.025em; }
-.nb-logo-text .g { color: var(--green-500); }
-.nb-logo-text .b { color: var(--blue-500); }
+.nb-logo  { display: flex; align-items: center; flex-shrink: 0; }
+/* Marca doble: blanca sobre el hero oscuro, original al solidificarse la barra */
+.nb-logo-mark { position: relative; display: block; width: 46px; height: 46px; }
+.nb-logo-mark img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; transition: opacity .3s ease;
+}
+.nb-logo-mark .mark-color { opacity: 0; }
+.navbar.scrolled .nb-logo-mark .mark-color { opacity: 1; }
+.navbar.scrolled .nb-logo-mark .mark-white { opacity: 0; }
 
 .nb-nav { display: flex; align-items: center; gap: .15rem; }
 .nb-nav a {
@@ -558,8 +563,8 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 3rem;
   border-bottom: 1px solid rgba(255,255,255,.07);
 }
-.foot-logo { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
-.foot-logo img { height: 40px; }
+.foot-logo { display: flex; align-items: center; margin-bottom: 1rem; }
+.foot-logo img { height: 46px; width: auto; }
 .foot-desc { font-size: .88rem; color: rgba(255,255,255,.52); line-height: 1.72; margin-bottom: 1.5rem; }
 .foot-social { display: flex; gap: .6rem; }
 .foot-soc-link {
@@ -643,7 +648,6 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
 
   /* Asegurar que la barra de nav no desborde */
   .nb-inner { gap: .75rem; }
-  .nb-logo-text { font-size: 1.35rem; }
 
   /* Grids pasan a 1 columna */
   .srv-grid, .prod-grid, .test-grid, .blog-grid, .ben-grid { grid-template-columns: 1fr; }
@@ -685,9 +689,8 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   .cta-actions { flex-direction: column; width: 100%; }
   .cta-actions .btn { width: 100%; justify-content: center; }
 
-  /* Logo texto más pequeño en móvil pequeño */
-  .nb-logo-text { font-size: 1.2rem; }
-  .nb-logo img  { height: 36px; }
+  /* Logo un poco más compacto en móvil pequeño */
+  .nb-logo-mark { width: 36px; height: 36px; }
 
   /* Section padding más compacto */
   :root { --py: 2.5rem; }
@@ -702,7 +705,6 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   .hero-title { font-size: 2.1rem; }
   .hero-stats { grid-template-columns: repeat(2, 1fr); }
   .container { padding: 0 1rem; }
-  .nb-logo-text { display: none; }
 }
 
 /* ════════════════════════════════════════════
