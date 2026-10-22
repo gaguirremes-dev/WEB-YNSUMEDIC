@@ -10,17 +10,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/logos/favicon-32.png">
+  <link rel="icon" href="/assets/logos/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/assets/logos/apple-touch-icon.png">
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#3bae22">
 </head>
 <body>
 
-<header id="navbar" class="navbar scrolled">
+<header id="navbar" class="navbar scrolled" data-nav-solid>
   <div class="container">
     <nav class="nb-inner">
-      <a href="index.html" class="nb-logo">
-        <img src="assets/logos/LOGO - YNSUMEDIC.jpg" alt="YNSUMEDIC" width="42" height="42">
-        <span class="nb-logo-text"><span class="g">YNSU</span><span class="b">MEDIC</span></span>
+      <a href="index.html" class="nb-logo" aria-label="YNSUMEDIC — Inicio">
+        <span class="nb-logo-mark">
+          <img src="assets/logos/ynsumedic-mark-white.png" alt="" class="mark-white" width="42" height="42" aria-hidden="true">
+          <img src="assets/logos/ynsumedic-mark.png" alt="" class="mark-color" width="42" height="42" aria-hidden="true">
+        </span>
       </a>
       <ul class="nb-nav">
         <li><a href="index.html">Inicio</a></li>
