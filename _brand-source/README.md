@@ -11,6 +11,7 @@ Los assets que consume el sitio se generan desde acá y viven en `assets/logos/`
 | `icon-master-6000.png` | `assets/logos/favicon.ico`, `favicon-32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `ynsumedic-mark.png`, `ynsumedic-mark-white.png` | 32-512 px |
 | `logo-master-6000.png` | `assets/logos/logo-ynsumedic.png` (isotipo + wordmark, transparente) | 788x658 |
 | `logo-master-6000.png` | `assets/logos/logo-ynsumedic-blanco.png` (lockup todo blanco para fondos oscuros) | 480x401 |
+| `logo-master-6000.png` | `assets/logos/wordmark-white.png` y `wordmark-color.png` (solo las letras, para el navbar) | 480x54 |
 | `logo-master-6000.png` | `assets/img/og-cover.jpg` (portada para redes, 1200x630) | 1200x630 |
 
 Para regenerar la portada y el logo completo:

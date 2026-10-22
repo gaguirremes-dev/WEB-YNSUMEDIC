@@ -124,6 +124,15 @@ def main() -> None:
     white.save(white_path, optimize=True)
     print(f"logo-ynsumedic-blanco.png {white.size} {white_path.stat().st_size // 1024}KB")
 
+    # Wordmark alone (exact letterforms of the logo) for the navbar lockup.
+    wordmark = master.crop(bands[-1])
+    wordmark = wordmark.crop(alpha_bbox(wordmark))
+    for name, image in (("wordmark-color", wordmark), ("wordmark-white", to_white(wordmark))):
+        out = fit_width(image, 480)
+        path = ROOT / f"assets/logos/{name}.png"
+        out.save(path, optimize=True)
+        print(f"{name}.png {out.size} {path.stat().st_size // 1024}KB")
+
     cover = build_cover(to_white(master.crop(bands[0])), to_white(master.crop(bands[-1])))
     cover_path = ROOT / "assets/img/og-cover.jpg"
     cover_path.parent.mkdir(parents=True, exist_ok=True)

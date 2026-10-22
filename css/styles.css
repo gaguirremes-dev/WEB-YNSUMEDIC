@@ -169,7 +169,7 @@ input,textarea,select { font-family: inherit; }
 /* La barra es una píldora que flota sobre el hero, no una franja a todo el ancho */
 .nb-inner {
   display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-  padding: .45rem .5rem .45rem .55rem;
+  padding: .55rem .5rem .55rem 1.1rem;
   border-radius: 999px;
   background: rgba(11, 23, 45, .55);
   border: 1px solid rgba(255, 255, 255, .14);
@@ -184,11 +184,14 @@ input,textarea,select { font-family: inherit; }
   box-shadow: 0 12px 34px rgba(15, 23, 42, .16);
 }
 
-.nb-logo { display: flex; align-items: center; gap: .7rem; flex-shrink: 0; padding-right: .35rem; }
+.nb-logo {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; flex-shrink: 0;
+}
 /* Badge circular: le da contraste propio al isotipo sobre cualquier fondo */
 .nb-logo-badge {
   position: relative; display: grid; place-items: center;
-  width: 54px; height: 54px; border-radius: 50%;
+  width: 50px; height: 50px; border-radius: 50%;
   background: rgba(255, 255, 255, .13);
   border: 1px solid rgba(255, 255, 255, .42);
   box-shadow: 0 4px 14px rgba(0, 0, 0, .26);
@@ -207,14 +210,16 @@ input,textarea,select { font-family: inherit; }
 .navbar.scrolled .nb-logo-badge .mark-color { opacity: 1; }
 .navbar.scrolled .nb-logo-badge .mark-white { opacity: 0; }
 
-/* Wordmark: todo blanco sobre el hero, colores de marca al solidificarse */
-.nb-logo-text {
-  font-size: 1.15rem; font-weight: 800; letter-spacing: -.03em;
-  color: var(--white); white-space: nowrap;
+/* Wordmark bajo el isotipo, con las letras del logo original:
+   blanco sobre el hero y a color cuando la barra se solidifica */
+.nb-logo-wordmark { display: grid; width: 80px; }
+.nb-logo-wordmark img {
+  grid-area: 1 / 1; width: 100%; height: auto;
+  transition: opacity .3s ease;
 }
-.nb-logo-text span { transition: color .3s ease; }
-.navbar.scrolled .nb-logo-text .w-blue  { color: var(--blue-600); }
-.navbar.scrolled .nb-logo-text .w-green { color: var(--green-600); }
+.nb-logo-wordmark .wm-color { opacity: 0; }
+.navbar.scrolled .nb-logo-wordmark .wm-color { opacity: 1; }
+.navbar.scrolled .nb-logo-wordmark .wm-white { opacity: 0; }
 
 .nb-nav { display: flex; align-items: center; gap: .15rem; }
 .nb-nav a {
@@ -687,7 +692,7 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   .nb-ham { display: flex; }
 
   /* Asegurar que la barra de nav no desborde */
-  .nb-inner { gap: .75rem; padding: .35rem .4rem .35rem .45rem; }
+  .nb-inner { gap: .75rem; padding: .4rem .4rem .4rem .85rem; }
 
   /* Grids pasan a 1 columna */
   .srv-grid, .prod-grid, .test-grid, .blog-grid, .ben-grid { grid-template-columns: 1fr; }
@@ -731,7 +736,7 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
 
   /* Logo un poco más compacto en móvil pequeño */
   .nb-logo-badge { width: 42px; height: 42px; }
-  .nb-logo-text { font-size: 1rem; }
+  .nb-logo-wordmark { width: 78px; }
 
   /* Section padding más compacto */
   :root { --py: 2.5rem; }
