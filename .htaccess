@@ -122,6 +122,16 @@ ServerSignature Off
   Deny from all
 </FilesMatch>
 
+# ── API: bloquear archivos internos y registros ─────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Configuration, shared helpers and mailer classes must never be reachable
+  RewriteRule ^api/(bootstrap|config[^/]*)\.php$ - [F,L,NC]
+  RewriteRule ^api/lib/ - [F,L,NC]
+  # Stored submissions (JSONL logs) are server-side only
+  RewriteRule ^api/logs/ - [F,L,NC]
+</IfModule>
+
 # ── Errores personalizados ──────────────────────────────────
 ErrorDocument 404 /404.html
 ErrorDocument 403 /index.html

@@ -1,0 +1,28 @@
+# YNSUMEDIC — API hardening
+Options -Indexes
+
+# Configuration, library and stored submissions must never be reachable
+<IfModule mod_authz_core.c>
+  <FilesMatch "^(config\..*\.php|bootstrap\.php)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+  <FilesMatch "^(config\..*\.php|bootstrap\.php)$">
+    Order allow,deny
+    Deny from all
+  </FilesMatch>
+</IfModule>
+
+# Only the three public endpoints are served
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(lib|logs)/ - [F,L]
+  RewriteRule ^(?!contact\.php$|newsletter\.php$|reclamaciones\.php$).* - [F,L]
+</IfModule>
+
+# No sniffing, no caching of form responses
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Cache-Control "no-store, max-age=0"
+</IfModule>

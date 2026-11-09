@@ -1,0 +1,12 @@
+# YNSUMEDIC — never commit secrets or stored submissions
+api/config.smtp.php
+api/logs/*
+!api/logs/.htaccess
+api/*.log
+*.log
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp

@@ -3,6 +3,7 @@ Allow: /
 
 Disallow: /includes/
 Disallow: /data/
+Disallow: /api/
 Disallow: /*.json$
 
 Sitemap: https://ynsumedic.com/sitemap.xml
