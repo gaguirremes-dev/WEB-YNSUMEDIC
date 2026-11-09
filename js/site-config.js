@@ -28,8 +28,8 @@ window.YNSUMEDIC = {
   /* ── Social profiles ─────────────────────────── */
   social: {
     facebook:  'https://www.facebook.com/profile.php?id=61590267059171',
-    instagram: 'https://www.instagram.com/ynsumedic/',
-    tiktok:    'https://www.tiktok.com/@ynsumedic',
-    youtube:   'https://www.youtube.com/@Ynsumedic'
+    instagram: 'https://www.instagram.com/somosynsumedic/',
+    tiktok:    'https://www.tiktok.com/@somosynsumedic',
+    youtube:   'https://www.youtube.com/@somosynsumedic'
   }
 };
