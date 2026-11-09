@@ -92,9 +92,11 @@ ServerSignature Off
     Header set Expires "0"
   </FilesMatch>
 
-  # Cache inmutable para assets con hash
+  # CSS / JS:短期 cache + revalidación obligatoria.
+  # "immutable" está deshabilitado a propósito: el sitio se despliega con
+  # git pull y un CSS truncado en caché dejaría el sitio sin estilos por 30 días.
   <FilesMatch "\.(css|js|woff|woff2|ttf|eot)$">
-    Header set Cache-Control "public, max-age=2592000, immutable"
+    Header set Cache-Control "public, max-age=600, must-revalidate"
   </FilesMatch>
 </IfModule>
 
