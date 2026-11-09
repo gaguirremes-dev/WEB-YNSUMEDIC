@@ -13,7 +13,7 @@
 
 return [
     // Destination mailbox for leads / reclamaciones
-    'to'      => 'info@ynsumedic.com',
+    'to'      => 'comercial@ynsumedic.com',
     'to_name' => 'YNSUMEDIC',
 
     // Envelope sender. Must belong to the domain (SPF/DKIM friendliness).

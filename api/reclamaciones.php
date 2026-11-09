@@ -153,8 +153,9 @@ if (!$sent) {
 /* ── Acknowledgement with the reference number ─────────────── */
 
 $config = yns_config();
+$emailEnviada = true;
 if (!empty($config['autoreply'])) {
-    Mailer::send(
+    $emailEnviada = Mailer::send(
         $email,
         $nombre,
         'YNSUMEDIC — Constancia del Libro de Reclamaciones ' . $referencia,
@@ -182,5 +183,6 @@ if (!empty($config['autoreply'])) {
 yns_json([
     'ok'         => true,
     'referencia' => $referencia,
+    'emailSent'  => $emailEnviada,
     'message'    => 'Hoja registrada. Enviamos la constancia a su correo electrónico.',
 ]);

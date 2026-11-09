@@ -952,6 +952,15 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   border-radius: var(--r-sm); font-size: .86rem; color: var(--gray-700);
 }
 .form-success-note { margin-top: .9rem; font-size: .82rem; color: var(--gray-400); }
+.form-success-warn {
+  margin-top: .9rem; padding: .7rem .9rem; border-radius: var(--r-sm);
+  background: rgba(245, 158, 11, .1); border: 1px solid rgba(245, 158, 11, .35);
+  color: #92400e; font-size: .84rem; line-height: 1.6;
+}
+.form-success--dark .form-success-warn {
+  background: rgba(245, 158, 11, .16); border-color: rgba(245, 158, 11, .45);
+  color: #fde68a;
+}
 
 /* ════════════════════════════════════════════
    LIBRO DE RECLAMACIONES — AVISO VIRTUAL

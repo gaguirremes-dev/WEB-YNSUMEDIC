@@ -48,8 +48,9 @@ if (!$sent) {
     ], 502);
 }
 
+$copiaEnviada = true;
 if (!empty($config['autoreply'])) {
-    Mailer::send(
+    $copiaEnviada = Mailer::send(
         $email,
         '',
         'YNSUMEDIC — Suscripción confirmada',
@@ -66,4 +67,8 @@ if (!empty($config['autoreply'])) {
     );
 }
 
-yns_json(['ok' => true, 'message' => 'Suscripción confirmada. Gracias por escribirnos.']);
+yns_json([
+    'ok'       => true,
+    'copySent' => $copiaEnviada,
+    'message'  => 'Suscripción confirmada. Gracias por escribirnos.',
+]);

@@ -106,6 +106,7 @@ if (!$sent) {
 
 /* Courtesy copy for the submitter */
 $config = yns_config();
+$copiaEnviada = true;
 if (!empty($config['autoreply'])) {
     $copia = yns_email_html(
         'Recibimos su solicitud',
@@ -117,7 +118,7 @@ if (!empty($config['autoreply'])) {
         ],
         ['Este mensaje se generó automáticamente; no responda a esta dirección.']
     );
-    Mailer::send(
+    $copiaEnviada = Mailer::send(
         $email,
         $nombre,
         'YNSUMEDIC — Recibimos su solicitud ' . $referencia,
@@ -132,5 +133,6 @@ if (!empty($config['autoreply'])) {
 yns_json([
     'ok'         => true,
     'referencia' => $referencia,
+    'copySent'   => $copiaEnviada,
     'message'    => 'Solicitud enviada. Un especialista le responderá en menos de 24 horas hábiles.',
 ]);

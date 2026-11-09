@@ -18,7 +18,7 @@ function yns_config(): array
     }
 
     $defaults = [
-        'to'         => 'info@ynsumedic.com',
+        'to'         => 'comercial@ynsumedic.com',
         'to_name'    => 'YNSUMEDIC',
         'from'       => 'web@ynsumedic.com',
         'from_name'  => 'Web YNSUMEDIC',

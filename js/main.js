@@ -43,6 +43,7 @@ function hydrateSiteConfig() {
       const value = cfg.addressFull || cfg.address;
       if (value) el.textContent = value;
     }
+    if (key === 'address-short' && cfg.addressShort) el.textContent = cfg.addressShort;
     if (key === 'hours' && cfg.hours) el.textContent = cfg.hours;
 
     if (key === 'legal') {
@@ -397,6 +398,15 @@ function showFormSuccess(form, payload) {
     refHtml = '<p class="form-success-ref">N.º de constancia: <strong>' + escapeHtml(payload.referencia) + '</strong></p>';
   }
 
+  /* The copy to the customer can be rejected by the mail server even when
+     the internal notification succeeded: warn instead of hiding it. */
+  let mailWarnHtml = '';
+  if (payload.emailSent === false || payload.copySent === false) {
+    mailWarnHtml =
+      '<p class="form-success-warn">No pudimos enviar el correo de confirmación a su dirección. ' +
+      'Guarde o anote el número de constancia y compártalo con nosotros por WhatsApp o teléfono.</p>';
+  }
+
   box.innerHTML =
     '<div class="form-success-ico">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
@@ -405,6 +415,7 @@ function showFormSuccess(form, payload) {
     '<h3>' + escapeHtml(title) + '</h3>' +
     '<p>' + escapeHtml(payload.message || message) + '</p>' +
     refHtml +
+    mailWarnHtml +
     '<p class="form-success-note">' + escapeHtml(message) + '</p>';
 
   wrap.appendChild(box);

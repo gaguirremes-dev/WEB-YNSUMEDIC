@@ -7,19 +7,19 @@
 
 window.YNSUMEDIC = {
   /* ── Contact ─────────────────────────────────── */
-  // TODO(owner): replace with the real landline / WhatsApp number.
-  phoneDisplay: '+51 074 000 000',
-  phoneE164:    '+51074000000',
-  whatsapp:     '51074000000',
+  phoneDisplay: '943 704 298',
+  phoneE164:    '+51943704298',
+  whatsapp:     '51943704298',
 
-  email:   'info@ynsumedic.com',
-  address: 'Chiclayo, Lambayeque — Perú',
-  addressFull: '', // TODO(owner): street address, district and city
+  email:   'comercial@ynsumedic.com',
+  address: 'Av. República de Chile Nro. 324, Int. 601, Urb. Santa Beatriz (Edificio Polaris), Jesús María, Lima',
+  addressShort: 'Jesús María, Lima — Perú',
   hours:   'Lun–Vie: 8:00 am – 6:00 pm',
 
   /* ── Legal entity ────────────────────────────── */
-  legalName: 'YNSUMEDIC S.A.C.',
-  ruc: '', // TODO(owner): 11-digit RUC
+  // The owner has not registered a legal entity or RUC yet.
+  legalName: 'YNSUMEDIC',
+  ruc: '',
 
   /* ── Libro de Reclamaciones ──────────────────── */
   // Internal page, or the provider URL if the owner hires one.
