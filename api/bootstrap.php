@@ -25,7 +25,29 @@ function yns_config(): array
         'transport'  => 'mail',
         'smtp'       => [],
         'autoreply'  => true,
-        'rate_limit' => ['max' => 5, 'window' => 600],
+        'rate_limit' => [
+            // Fallback limits for any endpoint without a specific bucket
+            'max'    => 5,
+            'window' => 600,
+            // Maximum submissions per IP across every endpoint
+            'global' => ['max' => 15, 'window' => 3600],
+            // Maximum submissions per IP per day
+            'daily'  => ['max' => 30, 'window' => 86400],
+            // Per endpoint limits
+            'buckets' => [
+                'contact'       => ['max' => 5,  'window' => 600],
+                'newsletter'    => ['max' => 3,  'window' => 3600],
+                'reclamaciones' => ['max' => 1,  'window' => 1800],
+            ],
+        ],
+        'anti_spam' => [
+            // Minimum seconds between rendering and submitting the form
+            'min_seconds'      => 3,
+            // Window used to detect repeated submissions
+            'duplicate_window' => 86400,
+            // Courtesy copies sent to the same mailbox per day
+            'email_quota'      => ['max' => 5, 'window' => 86400],
+        ],
         'log_dir'    => __DIR__ . '/logs',
     ];
 
@@ -131,16 +153,45 @@ function yns_reference(string $prefix): string
 
 /* ── Rate limiting (file based, no database) ───────────────── */
 
-function yns_rate_limited(string $bucket): bool
+/**
+ * Resolve the limit rules for a bucket.
+ * Buckets can be tuned per endpoint under rate_limit.buckets.
+ */
+function yns_limit_for(string $bucket): array
 {
-    $config = yns_config();
-    $max    = (int) ($config['rate_limit']['max'] ?? 5);
-    $window = (int) ($config['rate_limit']['window'] ?? 600);
+    $limits = (array) (yns_config()['rate_limit'] ?? []);
+    $key    = strtolower((string) preg_replace('/[^a-z0-9_-]/i', '', $bucket));
+
+    if ($key === 'global' && isset($limits['global'])) {
+        $rule = (array) $limits['global'];
+    } elseif ($key === 'daily' && isset($limits['daily'])) {
+        $rule = (array) $limits['daily'];
+    } else {
+        $buckets = (array) ($limits['buckets'] ?? []);
+        $rule    = isset($buckets[$key]) ? (array) $buckets[$key] : (array) $limits;
+    }
+
+    return [
+        'max'     => (int) ($rule['max'] ?? 5),
+        'window'  => (int) ($rule['window'] ?? 600),
+        'message' => (string) ($rule['message'] ?? ''),
+    ];
+}
+
+/**
+ * Count one hit for the given key and tell whether it is over the limit.
+ * A hit is only recorded when the caller is still below the limit.
+ */
+function yns_rate_limited(string $bucket, ?array $limit = null): bool
+{
+    $limit  = $limit ?: yns_limit_for($bucket);
+    $max    = (int) ($limit['max'] ?? 5);
+    $window = (int) ($limit['window'] ?? 600);
     if ($max <= 0) {
         return false;
     }
 
-    $file = rtrim($config['log_dir'], '/\\') . '/rl_' . sha1($bucket . '|' . yns_client_ip()) . '.json';
+    $file = rtrim((string) yns_config()['log_dir'], '/\\') . '/rl_' . sha1($bucket . '|' . yns_client_ip()) . '.json';
     $now  = time();
     $fh   = @fopen($file, 'c+');
     if (!$fh) {
@@ -165,6 +216,152 @@ function yns_rate_limited(string $bucket): bool
     fclose($fh);
 
     return $limited ?? false;
+}
+
+/**
+ * Cap the courtesy copies sent to a single mailbox, so the endpoint cannot
+ * be used to spam a third party address.
+ */
+function yns_email_quota_exceeded(string $email, ?array $limit = null): bool
+{
+    $email = trim($email);
+    if ($email === '') {
+        return true;
+    }
+
+    $rules = (array) (yns_config()['anti_spam'] ?? []);
+    $limit = $limit ?: (array) ($rules['email_quota'] ?? ['max' => 5, 'window' => 86400]);
+    $max    = (int) ($limit['max'] ?? 5);
+    $window = (int) ($limit['window'] ?? 86400);
+    if ($max <= 0) {
+        return false;
+    }
+
+    $file = rtrim((string) yns_config()['log_dir'], '/\\') . '/eq_' . sha1(strtolower($email)) . '.json';
+    $now  = time();
+    $fh   = @fopen($file, 'c+');
+    if (!$fh) {
+        return false;
+    }
+
+    $hits = [];
+    if (flock($fh, LOCK_EX)) {
+        $raw  = stream_get_contents($fh) ?: '[]';
+        $hits = json_decode($raw, true);
+        $hits = is_array($hits) ? array_values(array_filter($hits, static fn ($t) => is_int($t) && $t > $now - $window)) : [];
+        $exceeded = count($hits) >= $max;
+        if (!$exceeded) {
+            $hits[] = $now;
+            ftruncate($fh, 0);
+            rewind($fh);
+            fwrite($fh, json_encode($hits));
+            fflush($fh);
+        }
+        flock($fh, LOCK_UN);
+    }
+    fclose($fh);
+
+    return $exceeded ?? false;
+}
+
+/**
+ * Look for a previous submission of the same type with the same values.
+ * Used to avoid sending the same e-mail twice (and to avoid creating
+ * duplicated hojas in the Libro de Reclamaciones).
+ */
+function yns_find_recent(string $type, array $match, ?int $window = null): ?array
+{
+    $rules  = (array) (yns_config()['anti_spam'] ?? []);
+    $window = $window ?: (int) ($rules['duplicate_window'] ?? 86400);
+    $dir    = rtrim((string) (yns_config()['log_dir'] ?? ''), '/\\');
+    if ($dir === '' || $match === []) {
+        return null;
+    }
+
+    $files = [];
+    foreach ([date('Y-m'), date('Y-m', strtotime('-1 month'))] as $ym) {
+        $file = $dir . '/' . preg_replace('/[^a-z0-9_-]/i', '', $type) . '-' . $ym . '.jsonl';
+        if (is_file($file)) {
+            $files[] = $file;
+        }
+    }
+
+    $cutoff = time() - max(60, $window);
+    foreach ($files as $file) {
+        $handle = @fopen($file, 'r');
+        if (!$handle) {
+            continue;
+        }
+        $size   = (int) @filesize($file);
+        $offset = max(0, $size - 524288); // read at most the last 512 KB
+        fseek($handle, $offset);
+        $content = stream_get_contents($handle) ?: '';
+        fclose($handle);
+
+        foreach (explode("\n", $content) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $record = json_decode($line, true);
+            if (!is_array($record)) {
+                continue;
+            }
+            $created = strtotime((string) ($record['created_at'] ?? ''));
+            if (!$created || $created < $cutoff) {
+                continue;
+            }
+            $data = (array) ($record['data'] ?? []);
+            $same = true;
+            foreach ($match as $key => $value) {
+                if (strtolower(trim((string) ($data[$key] ?? ''))) !== strtolower(trim((string) $value))) {
+                    $same = false;
+                    break;
+                }
+            }
+            if ($same) {
+                return $record;
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Bots usually submit a form in less than a second. The browser stamps the
+ * form with a timestamp; requests without it (no JavaScript) are allowed.
+ */
+function yns_form_timing_ok(): bool
+{
+    $rules = (array) (yns_config()['anti_spam'] ?? []);
+    $min   = (int) ($rules['min_seconds'] ?? 0);
+    if ($min <= 0) {
+        return true;
+    }
+
+    $ts = (int) ($_POST['ts'] ?? 0);
+    if ($ts <= 0) {
+        return true;
+    }
+
+    $elapsed = time() - (int) floor($ts / 1000);
+    if ($elapsed < -120) {
+        return true; // client clock ahead of the server: do not punish the user
+    }
+
+    return $elapsed >= $min;
+}
+
+/**
+ * Reject oversized payloads before touching the mail transport.
+ */
+function yns_check_body_size(int $max = 65536): void
+{
+    $length = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+    if ($length > $max) {
+        yns_json(['ok' => false, 'message' => 'La solicitud es demasiado grande.'], 413);
+    }
 }
 
 /* ── Persistence + e-mail ──────────────────────────────────── */
@@ -239,25 +436,64 @@ function yns_send(string $subject, string $html, string $replyTo = '', string $r
 
 /**
  * Common guard used by every endpoint.
+ *
+ * Order matters: transport level checks first, then the anti-spam layers,
+ * then the honeypot, and only afterwards the field validation.
  */
-function yns_guard(string $bucket, array $errors = []): void
+function yns_guard(string $bucket, array $errors = [], array $options = []): void
 {
     yns_only_post();
+    yns_check_body_size();
 
     if (!yns_same_origin()) {
         yns_json(['ok' => false, 'message' => 'Origen no permitido.'], 403);
     }
-    if (yns_honeypot()) {
-        // Pretend success so bots do not learn how to bypass the filter.
-        yns_json(['ok' => true, 'message' => 'Solicitud recibida.']);
-    }
-    if (yns_rate_limited($bucket)) {
+
+    /* Limit shared by every endpoint of the API. */
+    $global = yns_limit_for('global');
+    if (yns_rate_limited('global', $global)) {
         yns_json([
             'ok'      => false,
-            'message' => 'Hemos recibido varias solicitudes desde su conexión. Espere unos minutos o escríbanos por WhatsApp.',
+            'message' => 'Has enviado demasiadas solicitudes desde esta conexión. Espere un momento o escríbanos por WhatsApp.',
         ], 429);
     }
+
+    /* Hard daily cap per IP. */
+    $daily = yns_limit_for('daily');
+    if (yns_rate_limited('daily', $daily)) {
+        yns_json([
+            'ok'      => false,
+            'message' => 'Se alcanzó el límite diario de solicitudes desde esta conexión. Escríbanos por WhatsApp para atenderlo de inmediato.',
+        ], 429);
+    }
+
+    /* A form submitted in less than a few seconds is very likely a bot. */
+    if (!yns_form_timing_ok()) {
+        yns_json([
+            'ok'      => false,
+            'message' => 'El formulario se envió demasiado rápido. Recargue la página e intente nuevamente.',
+        ], 429);
+    }
+
+    /* Honeypot: pretend success so bots do not learn how to bypass it. */
+    if (yns_honeypot()) {
+        yns_json(['ok' => true, 'message' => 'Solicitud recibida.']);
+    }
+
+    /* Invalid submissions are rejected before touching the per endpoint
+       quota, so a typo in the form does not consume the visitor allowance. */
     if ($errors !== []) {
         yns_json(['ok' => false, 'message' => 'Revise los datos marcados.', 'errors' => $errors], 422);
+    }
+
+    /* Limit of this specific endpoint: only valid submissions count. */
+    $rule = yns_limit_for($bucket);
+    if (yns_rate_limited($bucket, $rule)) {
+        yns_json([
+            'ok'      => false,
+            'message' => $rule['message'] !== ''
+                ? $rule['message']
+                : 'Ha enviado demasiadas solicitudes desde esta conexión. Espere unos minutos o escríbanos por WhatsApp.',
+        ], 429);
     }
 }

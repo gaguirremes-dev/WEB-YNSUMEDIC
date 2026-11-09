@@ -1,6 +1,9 @@
 # YNSUMEDIC — API hardening
 Options -Indexes
 
+# Cap the request body size accepted by the form endpoints
+LimitRequestBody 65536
+
 # Configuration, library and stored submissions must never be reachable
 <IfModule mod_authz_core.c>
   <FilesMatch "^(config\..*\.php|bootstrap\.php)$">

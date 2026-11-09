@@ -52,6 +52,18 @@ if (!yns_check('privacidad')) {
 
 yns_guard('contact', $errors);
 
+/* ── Duplicate protection ──────────────────────────────────── */
+
+$previous = yns_find_recent('contacto', ['email' => $email, 'ruc' => $ruc]);
+if ($previous !== null) {
+    yns_json([
+        'ok'         => true,
+        'referencia' => (string) ($previous['data']['referencia'] ?? ''),
+        'duplicate'  => true,
+        'message'    => 'Ya recibimos una solicitud con estos datos. No es necesario enviarla otra vez; le responderemos en breve.',
+    ]);
+}
+
 /* ── Persist + notify ──────────────────────────────────────── */
 
 $referencia = yns_reference('COT');
@@ -108,26 +120,31 @@ if (!$sent) {
 $config = yns_config();
 $copiaEnviada = true;
 if (!empty($config['autoreply'])) {
-    $copia = yns_email_html(
-        'Recibimos su solicitud',
-        'Gracias por escribirnos. Un especialista de YNSUMEDIC revisará su requerimiento y le responderá en un plazo máximo de 24 horas hábiles.',
-        [
-            'Referencia' => $referencia,
-            'Empresa'    => $empresa,
-            'Requerimiento' => $servicio !== '' ? $servicio : 'Consulta corporativa',
-        ],
-        ['Este mensaje se generó automáticamente; no responda a esta dirección.']
-    );
-    $copiaEnviada = Mailer::send(
-        $email,
-        $nombre,
-        'YNSUMEDIC — Recibimos su solicitud ' . $referencia,
-        $copia,
-        (string) $config['from'],
-        (string) $config['from_name'],
-        (string) $config['to'],
-        (string) $config['to_name']
-    );
+    if (yns_email_quota_exceeded($email)) {
+        /* Daily quota for this mailbox reached: keep the lead, skip the copy. */
+        $copiaEnviada = false;
+    } else {
+        $copia = yns_email_html(
+            'Recibimos su solicitud',
+            'Gracias por escribirnos. Un especialista de YNSUMEDIC revisará su requerimiento y le responderá en un plazo máximo de 24 horas hábiles.',
+            [
+                'Referencia' => $referencia,
+                'Empresa'    => $empresa,
+                'Requerimiento' => $servicio !== '' ? $servicio : 'Consulta corporativa',
+            ],
+            ['Este mensaje se generó automáticamente; no responda a esta dirección.']
+        );
+        $copiaEnviada = Mailer::send(
+            $email,
+            $nombre,
+            'YNSUMEDIC — Recibimos su solicitud ' . $referencia,
+            $copia,
+            (string) $config['from'],
+            (string) $config['from_name'],
+            (string) $config['to'],
+            (string) $config['to_name']
+        );
+    }
 }
 
 yns_json([

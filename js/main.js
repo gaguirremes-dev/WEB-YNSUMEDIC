@@ -196,6 +196,16 @@ function initAjaxForms() {
   if (!forms.length) return;
 
   forms.forEach((form) => {
+    /* Timestamp used by the server to reject bot submissions that are
+       posted in less than a few seconds. */
+    if (!form.querySelector('input[name="ts"]')) {
+      const ts = document.createElement('input');
+      ts.type = 'hidden';
+      ts.name = 'ts';
+      ts.value = String(Date.now());
+      form.appendChild(ts);
+    }
+
     form.querySelectorAll('.form-ctrl').forEach((field) => {
       field.addEventListener('blur', () => validateField(field, form));
       field.addEventListener('input', () => clearFieldError(field, form));

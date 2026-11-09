@@ -84,6 +84,24 @@ if (!yns_check('privacidad')) {
 
 yns_guard('reclamaciones', $errors);
 
+/* ── Duplicate protection ──────────────────────────────────── */
+
+/* Same consumer, same document and same case text: keep one single hoja. */
+$fingerprint = md5(mb_strtolower($detalle));
+$previous    = yns_find_recent('reclamaciones', [
+    'email'       => $email,
+    'doc_number'  => $docNumber,
+    'fingerprint' => $fingerprint,
+]);
+if ($previous !== null) {
+    yns_json([
+        'ok'         => true,
+        'referencia' => (string) ($previous['data']['referencia'] ?? ''),
+        'duplicate'  => true,
+        'message'    => 'Esta hoja ya fue registrada. Conserve el número de constancia y no es necesario registrarla otra vez.',
+    ]);
+}
+
 /* ── Persist + notify ──────────────────────────────────────── */
 
 $referencia = yns_reference('LIB');
@@ -105,6 +123,7 @@ $data = [
     'comprobante'     => $comprobante,
     'detalle'         => $detalle,
     'pedido'          => $pedido,
+    'fingerprint'     => $fingerprint,
     'page'            => yns_str('page', 200),
 ];
 
@@ -155,29 +174,33 @@ if (!$sent) {
 $config = yns_config();
 $emailEnviada = true;
 if (!empty($config['autoreply'])) {
-    $emailEnviada = Mailer::send(
-        $email,
-        $nombre,
-        'YNSUMEDIC — Constancia del Libro de Reclamaciones ' . $referencia,
-        yns_email_html(
-            'Constancia de recepción',
-            'Su hoja fue registrada en el Libro de Reclamaciones Virtual de YNSUMEDIC. Conserve el número de constancia para el seguimiento de su caso.',
-            [
-                'Constancia' => $referencia,
-                'Tipo'       => $tipo === 'reclamo' ? 'Reclamo' : 'Queja',
-                'Consumidor' => $nombre,
-                'Bien o servicio' => $bienDesc,
-            ],
-            [
-                'Plazo de respuesta: máximo 30 días calendario.',
-                'Este mensaje se generó automáticamente; no responda a esta dirección.',
-            ]
-        ),
-        (string) $config['from'],
-        (string) $config['from_name'],
-        (string) $config['to'],
-        (string) $config['to_name']
-    );
+    if (yns_email_quota_exceeded($email)) {
+        $emailEnviada = false;
+    } else {
+        $emailEnviada = Mailer::send(
+            $email,
+            $nombre,
+            'YNSUMEDIC — Constancia del Libro de Reclamaciones ' . $referencia,
+            yns_email_html(
+                'Constancia de recepción',
+                'Su hoja fue registrada en el Libro de Reclamaciones Virtual de YNSUMEDIC. Conserve el número de constancia para el seguimiento de su caso.',
+                [
+                    'Constancia' => $referencia,
+                    'Tipo'       => $tipo === 'reclamo' ? 'Reclamo' : 'Queja',
+                    'Consumidor' => $nombre,
+                    'Bien o servicio' => $bienDesc,
+                ],
+                [
+                    'Plazo de respuesta: máximo 30 días calendario.',
+                    'Este mensaje se generó automáticamente; no responda a esta dirección.',
+                ]
+            ),
+            (string) $config['from'],
+            (string) $config['from_name'],
+            (string) $config['to'],
+            (string) $config['to_name']
+        );
+    }
 }
 
 yns_json([

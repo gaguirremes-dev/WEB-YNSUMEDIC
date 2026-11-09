@@ -20,6 +20,17 @@ if (!yns_check('privacidad')) {
 
 yns_guard('newsletter', $errors);
 
+/* ── Duplicate protection ──────────────────────────────────── */
+
+$previous = yns_find_recent('newsletter', ['email' => $email]);
+if ($previous !== null) {
+    yns_json([
+        'ok'        => true,
+        'duplicate' => true,
+        'message'   => 'Su correo ya está registrado en el boletín. No es necesario volver a suscribirse.',
+    ]);
+}
+
 $data = [
     'email' => $email,
     'page'  => yns_str('page', 200),
@@ -50,21 +61,25 @@ if (!$sent) {
 
 $copiaEnviada = true;
 if (!empty($config['autoreply'])) {
-    $copiaEnviada = Mailer::send(
-        $email,
-        '',
-        'YNSUMEDIC — Suscripción confirmada',
-        yns_email_html(
-            'Suscripción confirmada',
-            'Recibirá nuestros artículos sobre salud ocupacional, normativa y equipamiento médico corporativo.',
-            ['Correo registrado' => $email],
-            ['Puede solicitar la baja respondiendo a este mensaje.']
-        ),
-        (string) $config['from'],
-        (string) $config['from_name'],
-        (string) $config['to'],
-        (string) $config['to_name']
-    );
+    if (yns_email_quota_exceeded($email)) {
+        $copiaEnviada = false;
+    } else {
+        $copiaEnviada = Mailer::send(
+            $email,
+            '',
+            'YNSUMEDIC — Suscripción confirmada',
+            yns_email_html(
+                'Suscripción confirmada',
+                'Recibirá nuestros artículos sobre salud ocupacional, normativa y equipamiento médico corporativo.',
+                ['Correo registrado' => $email],
+                ['Puede solicitar la baja respondiendo a este mensaje.']
+            ),
+            (string) $config['from'],
+            (string) $config['from_name'],
+            (string) $config['to'],
+            (string) $config['to_name']
+        );
+    }
 }
 
 yns_json([

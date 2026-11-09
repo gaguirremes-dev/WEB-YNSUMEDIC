@@ -35,10 +35,45 @@ return [
     // Send a courtesy copy to the person who submitted the form
     'autoreply' => true,
 
-    // Anti-spam: max submissions per IP inside the window (seconds)
+    /* ── Anti-abuse limits ──────────────────────────────────── */
     'rate_limit' => [
+        // Fallback for any endpoint without a specific rule
         'max'    => 5,
         'window' => 600,
+
+        // Maximum submissions per IP across every endpoint
+        'global' => ['max' => 15, 'window' => 3600],
+
+        // Maximum submissions per IP per day
+        'daily'  => ['max' => 30, 'window' => 86400],
+
+        // Per endpoint rules (max submissions per IP inside the window)
+        'buckets' => [
+            'contact' => [
+                'max'     => 5,
+                'window'  => 600,
+                'message' => 'Ha enviado demasiadas solicitudes de cotización desde esta conexión. Espere unos minutos o escríbanos por WhatsApp.',
+            ],
+            'newsletter' => [
+                'max'     => 3,
+                'window'  => 3600,
+                'message' => 'Ha enviado demasiadas suscripciones desde esta conexión. Espere un momento o escríbanos por WhatsApp.',
+            ],
+            'reclamaciones' => [
+                'max'     => 1,
+                'window'  => 1800,
+                'message' => 'Solo se puede registrar una hoja de reclamaciones cada 30 minutos desde la misma conexión. Si necesita registrar otro caso, escríbanos por WhatsApp o llámenos.',
+            ],
+        ],
+    ],
+
+    'anti_spam' => [
+        // Minimum seconds between rendering and submitting a form (bot filter)
+        'min_seconds'      => 3,
+        // Window used to detect repeated submissions with the same data
+        'duplicate_window' => 86400,
+        // Courtesy copies sent to the same mailbox per day
+        'email_quota'      => ['max' => 5, 'window' => 86400],
     ],
 
     // Optional: force a From address different from the SMTP user
