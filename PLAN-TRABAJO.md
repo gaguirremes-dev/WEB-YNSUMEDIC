@@ -18,7 +18,7 @@ Site copy stays in Spanish (neutral/professional). Code, comments and commit mes
 |----|------|
 | I1 | Real phone / WhatsApp number (replaces `+51 074 000 000` and `wa.me/51074000000`) |
 | I2 | Full street address of the Chiclayo office (and Lima, if one exists; the home page mentions Lima stock) |
-| I3 | Destination mailbox for quotes (default assumed: `info@ynsumedic.com`) |
+| I3 | Destination mailbox for quotes (default assumed: `comercial@ynsumedic.com`) |
 | I4 | SMTP credentials or confirmation that cPanel `mail()` works (server-side only) |
 | I5 | Link to the official Libro de Reclamaciones (virtual form or provider) |
 | I6 | Legal entity data for terms/privacy: razón social, RUC, domicilio fiscal |
