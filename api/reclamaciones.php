@@ -9,6 +9,16 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 
+/* GET ?token=1 — HMAC-signed form token (proves when the form was loaded). */
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['token'])) {
+    yns_json([
+        'ok'              => true,
+        'token'           => yns_form_token(),
+        // Public hCaptcha key only; the secret never leaves the server
+        'captcha_sitekey' => (new Captcha(yns_config(), 'ynsumedic.com'))->siteKey(),
+    ]);
+}
+
 $errors = [];
 
 $tipo = yns_str('tipo', 20);
@@ -82,7 +92,12 @@ if (!yns_check('privacidad')) {
     $errors['privacidad'] = 'Debe aceptar la Política de Privacidad.';
 }
 
-yns_guard('reclamaciones', $errors);
+/* Link spam: more than two URLs, <a ...> or [url=...] */
+foreach (yns_spam_fields(['nombre', 'domicilio', 'representante', 'bien_desc', 'comprobante', 'detalle', 'pedido']) as $spamKey) {
+    $errors[$spamKey] = 'No incluya enlaces en este campo.';
+}
+
+yns_guard('reclamaciones', $errors, ['strict' => true]);
 
 /* ── Duplicate protection ──────────────────────────────────── */
 
@@ -100,6 +115,14 @@ if ($previous !== null) {
         'duplicate'  => true,
         'message'    => 'Esta hoja ya fue registrada. Conserve el número de constancia y no es necesario registrarla otra vez.',
     ]);
+}
+
+/* Same case text from anyone else in the last 24 h: copy-paste spam. */
+if (yns_find_recent('reclamaciones', ['fingerprint' => $fingerprint]) !== null) {
+    yns_json([
+        'ok'      => false,
+        'message' => 'Ya recibimos una hoja con este mismo contenido. Si necesita ayuda, escríbanos por WhatsApp.',
+    ], 409);
 }
 
 /* ── Persist + notify ──────────────────────────────────────── */
@@ -147,7 +170,10 @@ $rows = [
     'Pedido concreto'   => $pedido,
 ];
 
-$sent = yns_send(
+$claimsCfg = yns_config();
+$sent = Mailer::send(
+    (string) $claimsCfg['claims_to'],
+    (string) $claimsCfg['to_name'],
     'Libro de Reclamaciones — ' . strtoupper($tipo) . ' — ' . $referencia,
     yns_email_html(
         'Nueva hoja del Libro de Reclamaciones',
@@ -158,6 +184,8 @@ $sent = yns_send(
             'IP'       => yns_client_ip(),
         ]
     ),
+    (string) $claimsCfg['claims_from'],
+    (string) $claimsCfg['from_name'],
     $email,
     $nombre
 );
@@ -195,9 +223,9 @@ if (!empty($config['autoreply'])) {
                     'Este mensaje se generó automáticamente; no responda a esta dirección.',
                 ]
             ),
-            (string) $config['from'],
+            (string) $config['claims_from'],
             (string) $config['from_name'],
-            (string) $config['to'],
+            (string) $config['claims_to'],
             (string) $config['to_name']
         );
     }

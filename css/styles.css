@@ -966,26 +966,18 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
    LIBRO DE RECLAMACIONES — AVISO VIRTUAL
 ════════════════════════════════════════════ */
 
-.libro-aviso {
-  display: inline-flex; align-items: center; gap: .8rem;
-  margin-top: 1rem; padding: .45rem .9rem .45rem .45rem;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  transition: var(--tr-f);
+.libro-card-wrap { margin-top: 1rem; }
+.libro-card {
+  display: block; width: 130px; max-width: 100%;
+  border-radius: 1rem; overflow: hidden; background: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,.28), 0 0 0 1px rgba(255,255,255,.35);
+  transition: transform .2s ease, box-shadow .2s ease;
 }
-.libro-aviso:hover { background: rgba(255,255,255,.12); border-color: var(--green-400); }
-.libro-aviso img {
-  width: 62px; height: 62px; object-fit: cover;
-  border-radius: 12px; background: var(--white);
-  box-shadow: 0 3px 12px rgba(0,0,0,.35);
-}
-.libro-aviso-tx { display: flex; flex-direction: column; line-height: 1.25; }
-.libro-aviso-tx strong { font-size: .8rem; color: var(--white); }
-.libro-aviso-tx small {
-  font-size: .63rem; font-weight: 800; letter-spacing: .09em;
-  text-transform: uppercase; color: var(--green-400);
-}
+.libro-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.5); }
+.libro-card picture, .libro-card img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 1rem; }
+.libro-card-mail { display: block; margin-top: .55rem; font-size: .75rem; color: rgba(255,255,255,.6); word-break: break-all; }
+.libro-card-mail:hover { color: var(--green-400); }
+@media (prefers-reduced-motion: reduce) { .libro-card { transition: none; } .libro-card:hover { transform: none; } }
 
 .foot-aviso { display: flex; justify-content: center; padding: 1.75rem 0 0; }
 
@@ -1105,3 +1097,6 @@ textarea.form-ctrl { min-height: 120px; resize: vertical; }
   .art-header { padding: 7rem 0 3rem; }
 }
 
+
+/* hCaptcha */
+.recl-captcha { margin: 1.25rem 0 1rem; min-height: 78px; }

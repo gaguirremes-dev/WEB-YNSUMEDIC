@@ -7,6 +7,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/Mailer.php';
+require_once __DIR__ . '/lib/Captcha.php';
 
 /* ── Configuration ─────────────────────────────────────────── */
 
@@ -22,6 +23,9 @@ function yns_config(): array
         'to_name'    => 'YNSUMEDIC',
         'from'       => 'web@ynsumedic.com',
         'from_name'  => 'Web YNSUMEDIC',
+        // Libro de Reclamaciones mailbox (destination and sender for claims)
+        'claims_to'  => 'reclamaciones@ynsumedic.com',
+        'claims_from' => 'reclamaciones@ynsumedic.com',
         'transport'  => 'mail',
         'smtp'       => [],
         'autoreply'  => true,
@@ -38,16 +42,25 @@ function yns_config(): array
                 'contact'       => ['max' => 5,  'window' => 600],
                 'newsletter'    => ['max' => 3,  'window' => 3600],
                 'reclamaciones' => ['max' => 1,  'window' => 1800],
+                // Libro de Reclamaciones: per-IP daily cap and site-wide caps
+                'reclamaciones_ip_day'    => ['max' => 5,  'window' => 86400],
+                'reclamaciones_site_hour' => ['max' => 20, 'window' => 3600],
+                'reclamaciones_site_day'  => ['max' => 80, 'window' => 86400],
             ],
         ],
         'anti_spam' => [
             // Minimum seconds between rendering and submitting the form
             'min_seconds'      => 3,
+            // Libro de Reclamaciones: signed form token validity (seconds)
+            'claims_min_seconds' => 5,
+            'claims_max_seconds' => 7200,
             // Window used to detect repeated submissions
             'duplicate_window' => 86400,
             // Courtesy copies sent to the same mailbox per day
             'email_quota'      => ['max' => 5, 'window' => 86400],
         ],
+        // hCaptcha (Libro de Reclamaciones). Keys live in config.smtp.php.
+        'captcha'    => ['site_key' => '', 'secret' => '', 'allow_localhost' => false],
         'log_dir'    => __DIR__ . '/logs',
     ];
 
@@ -76,13 +89,19 @@ function yns_only_post(): void
  * Reject cross-site posts. Privacy browsers may omit Origin/Referer,
  * so an absent header is accepted; a present but foreign host is not.
  */
-function yns_same_origin(): bool
+function yns_same_origin(bool $require = false): bool
 {
     $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
     if ($host === '') {
         return true;
     }
     $host = preg_replace('/:\d+$/', '', $host);
+
+    // Strict mode (claims form): a browser always sends Origin on a POST,
+    // so a request with neither Origin nor Referer is not accepted.
+    if ($require && empty($_SERVER['HTTP_ORIGIN']) && empty($_SERVER['HTTP_REFERER'])) {
+        return false;
+    }
 
     foreach (['HTTP_ORIGIN', 'HTTP_REFERER'] as $key) {
         if (empty($_SERVER[$key])) {
@@ -102,6 +121,8 @@ function yns_json(array $payload, int $status = 200): void
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store, max-age=0');
     header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Referrer-Policy: no-referrer');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -111,7 +132,7 @@ function yns_json(array $payload, int $status = 200): void
 function yns_str(string $key, int $max = 4000): string
 {
     $value = $_POST[$key] ?? '';
-    if (!is_string($value)) {
+    if (!is_string($value) || !mb_check_encoding($value, 'UTF-8')) {
         return '';
     }
     $value = strip_tags($value);
@@ -140,10 +161,145 @@ function yns_honeypot(): bool
     return yns_str('website', 200) !== '' || yns_str('empresa_web', 200) !== '';
 }
 
+/**
+ * Real client IP: REMOTE_ADDR, unless the connection comes from a Cloudflare
+ * range, in which case CF-Connecting-IP is trusted. X-Forwarded-For is never used.
+ */
 function yns_client_ip(): string
 {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return '0.0.0.0';
+    }
+
+    $cf = trim((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? ''));
+    if ($cf !== '' && filter_var($cf, FILTER_VALIDATE_IP) && yns_in_cloudflare($ip)) {
+        return $cf;
+    }
+    return $ip;
+}
+
+/** Ranges published by Cloudflare (https://www.cloudflare.com/ips/). */
+function yns_in_cloudflare(string $ip): bool
+{
+    static $ranges = [
+        '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
+        '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20',
+        '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13',
+        '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+        '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32',
+        '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32',
+    ];
+
+    $bin = @inet_pton($ip);
+    if ($bin === false) {
+        return false;
+    }
+    foreach ($ranges as $cidr) {
+        [$net, $bits] = explode('/', $cidr);
+        $netBin = inet_pton($net);
+        if (strlen($netBin) !== strlen($bin)) {
+            continue;
+        }
+        $bits  = (int) $bits;
+        $bytes = intdiv($bits, 8);
+        if (strncmp($bin, $netBin, $bytes) !== 0) {
+            continue;
+        }
+        $rest = $bits % 8;
+        if ($rest === 0) {
+            return true;
+        }
+        $mask = (0xFF << (8 - $rest)) & 0xFF;
+        if ((ord($bin[$bytes]) & $mask) === (ord($netBin[$bytes]) & $mask)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Server-side secret (generated once, stored in the deny-all logs directory).
+ * Used to salt IP hashes and to sign the form token.
+ */
+function yns_secret(): string
+{
+    static $secret = null;
+    if ($secret !== null) {
+        return $secret;
+    }
+    $file  = rtrim((string) yns_config()['log_dir'], '/\\') . '/.secret';
+    $value = is_file($file) ? trim((string) @file_get_contents($file)) : '';
+    if (strlen($value) < 32) {
+        $new = bin2hex(random_bytes(32));
+        $fp  = @fopen($file, 'x'); // fails if another request created it first
+        if ($fp) {
+            fwrite($fp, $new);
+            fclose($fp);
+            @chmod($file, 0600);
+        }
+        $value = trim((string) @file_get_contents($file));
+        if (strlen($value) < 32) {
+            $value = $new;
+        }
+    }
+    return $secret = $value;
+}
+
+/** HMAC-signed issue time of the form: "<unix ts>.<signature>". */
+function yns_form_token(): string
+{
+    $ts = (string) time();
+    return $ts . '.' . hash_hmac('sha256', 'form|' . $ts, yns_secret());
+}
+
+/**
+ * Validate the signed token posted with the form.
+ * $why gets 'missing' | 'forged' | 'fast' | 'expired' for the internal log.
+ */
+function yns_form_token_ok(int $min, int $max, ?string &$why = null): bool
+{
+    $token = $_POST['form_token'] ?? '';
+    if (!is_string($token) || !preg_match('/^(\d{9,12})\.([a-f0-9]{64})$/', $token, $m)) {
+        $why = 'missing';
+        return false;
+    }
+    if (!hash_equals(hash_hmac('sha256', 'form|' . $m[1], yns_secret()), $m[2])) {
+        $why = 'forged';
+        return false;
+    }
+    $elapsed = time() - (int) $m[1];
+    if ($elapsed < $min) {
+        $why = 'fast';
+        return false;
+    }
+    if ($elapsed > $max) {
+        $why = 'expired';
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Names of the given fields that look like link spam: more than two URLs,
+ * an HTML anchor or a BBCode [url=] tag (checked on the raw value, before
+ * yns_str() strips tags).
+ */
+function yns_spam_fields(array $keys): array
+{
+    $bad = [];
+    foreach ($keys as $key) {
+        $value = $_POST[$key] ?? '';
+        if (!is_string($value)) {
+            continue;
+        }
+        if (preg_match_all('~(?:https?://|www\.)~i', $value) > 2
+            || stripos($value, '<a ') !== false
+            || stripos($value, '[url=') !== false) {
+            $bad[] = $key;
+        }
+    }
+    return $bad;
 }
 
 function yns_reference(string $prefix): string
@@ -191,20 +347,27 @@ function yns_rate_limited(string $bucket, ?array $limit = null): bool
         return false;
     }
 
-    $file = rtrim((string) yns_config()['log_dir'], '/\\') . '/rl_' . sha1($bucket . '|' . yns_client_ip()) . '.json';
+    // Only a salted hash of the IP is used (never the IP itself). 'per_ip' =>
+    // false makes the bucket site-wide; 'fail_closed' => true rejects when the
+    // counter cannot be read or locked (claims form).
+    $who    = ($limit['per_ip'] ?? true) ? yns_client_ip() : 'site';
+    $closed = (bool) ($limit['fail_closed'] ?? false);
+    $file = rtrim((string) yns_config()['log_dir'], '/\\') . '/rl_' . hash_hmac('sha256', $bucket . '|' . $who, yns_secret()) . '.json';
     $now  = time();
     $fh   = @fopen($file, 'c+');
     if (!$fh) {
-        return false; // never block a lead because of a filesystem issue
+        return $closed; // leads are never blocked for a filesystem issue, except on the claims form
     }
 
     $hits = [];
+    $limited = $closed;
     if (flock($fh, LOCK_EX)) {
         $raw  = stream_get_contents($fh) ?: '[]';
         $hits = json_decode($raw, true);
         $hits = is_array($hits) ? array_values(array_filter($hits, static fn ($t) => is_int($t) && $t > $now - $window)) : [];
         $limited = count($hits) >= $max;
-        if (!$limited) {
+        // 'peek' => true only checks the counter; the hit is not recorded.
+        if (!$limited && empty($limit['peek'])) {
             $hits[] = $now;
             ftruncate($fh, 0);
             rewind($fh);
@@ -215,7 +378,7 @@ function yns_rate_limited(string $bucket, ?array $limit = null): bool
     }
     fclose($fh);
 
-    return $limited ?? false;
+    return $limited;
 }
 
 /**
@@ -442,33 +605,51 @@ function yns_send(string $subject, string $html, string $replyTo = '', string $r
  */
 function yns_guard(string $bucket, array $errors = [], array $options = []): void
 {
+    $strict = !empty($options['strict']);
+
     yns_only_post();
     yns_check_body_size();
 
-    if (!yns_same_origin()) {
+    if (!yns_same_origin($strict)) {
         yns_json(['ok' => false, 'message' => 'Origen no permitido.'], 403);
     }
 
-    /* Limit shared by every endpoint of the API. */
-    $global = yns_limit_for('global');
-    if (yns_rate_limited('global', $global)) {
-        yns_json([
-            'ok'      => false,
-            'message' => 'Has enviado demasiadas solicitudes desde esta conexión. Espere un momento o escríbanos por WhatsApp.',
-        ], 429);
-    }
-
-    /* Hard daily cap per IP. */
-    $daily = yns_limit_for('daily');
-    if (yns_rate_limited('daily', $daily)) {
-        yns_json([
-            'ok'      => false,
-            'message' => 'Se alcanzó el límite diario de solicitudes desde esta conexión. Escríbanos por WhatsApp para atenderlo de inmediato.',
-        ], 429);
+    /* Limits shared by every endpoint of the API: a short window and a hard daily
+       cap per IP. On the claims form (strict) they are only CHECKED here and the
+       hit is recorded after the captcha passes, so a failed captcha does not burn
+       the visitor's allowance. Failed captchas have their own counter below. */
+    $shared = [
+        'global' => [
+            yns_limit_for('global'),
+            'Has enviado demasiadas solicitudes desde esta conexión. Espere un momento o escríbanos por WhatsApp.',
+        ],
+        'daily'  => [
+            yns_limit_for('daily'),
+            'Se alcanzó el límite diario de solicitudes desde esta conexión. Escríbanos por WhatsApp para atenderlo de inmediato.',
+        ],
+    ];
+    foreach ($shared as $name => [$rule, $message]) {
+        if (yns_rate_limited($name, $rule + ['peek' => $strict])) {
+            yns_json(['ok' => false, 'message' => $message], 429);
+        }
     }
 
     /* A form submitted in less than a few seconds is very likely a bot. */
-    if (!yns_form_timing_ok()) {
+    if ($strict) {
+        /* Signed token issued by the server (GET ?token=1): the client cannot
+           forge the fill time. Too fast: < claims_min_seconds; stale: > claims_max_seconds. */
+        $rules = (array) (yns_config()['anti_spam'] ?? []);
+        $why   = null;
+        if (!yns_form_token_ok((int) ($rules['claims_min_seconds'] ?? 5), (int) ($rules['claims_max_seconds'] ?? 7200), $why)) {
+            @error_log('[yns] ' . $bucket . ' token rejected (' . $why . ') from ' . yns_client_ip());
+            yns_json([
+                'ok'      => false,
+                'message' => $why === 'fast'
+                    ? 'El formulario se envió demasiado rápido. Recargue la página e intente nuevamente.'
+                    : 'El formulario expiró. Recargue la página e intente nuevamente.',
+            ], $why === 'fast' ? 429 : 400);
+        }
+    } elseif (!yns_form_timing_ok()) {
         yns_json([
             'ok'      => false,
             'message' => 'El formulario se envió demasiado rápido. Recargue la página e intente nuevamente.',
@@ -486,8 +667,43 @@ function yns_guard(string $bucket, array $errors = [], array $options = []): voi
         yns_json(['ok' => false, 'message' => 'Revise los datos marcados.', 'errors' => $errors], 422);
     }
 
+    /* Claims form: hCaptcha (fail-closed) before the per endpoint quota is
+       consumed and before any mail is sent. */
+    if ($strict) {
+        /* Failed captchas are throttled on their own counter (per IP), so a bot
+           cannot hammer the verification call and a person is not locked out by
+           a couple of mistakes. */
+        $failRule = ['max' => 8, 'window' => 600, 'per_ip' => true, 'fail_closed' => true];
+        if (yns_rate_limited('captcha_fail', $failRule + ['peek' => true])) {
+            yns_json([
+                'ok'      => false,
+                'message' => 'Demasiados intentos de verificación. Espere unos minutos e intente nuevamente.',
+            ], 429);
+        }
+
+        $captcha = new Captcha(yns_config(), 'ynsumedic.com');
+        $why     = null;
+        $posted  = $_POST['h-captcha-response'] ?? '';
+        if (!$captcha->verify(is_string($posted) ? $posted : '', yns_client_ip(), $why)) {
+            yns_rate_limited('captcha_fail', $failRule);
+            @error_log('[yns] ' . $bucket . ' captcha rejected (' . $why . ') from ' . yns_client_ip());
+            yns_json([
+                'ok'      => false,
+                'message' => 'No pudimos verificar que usted es una persona. Marque la casilla de verificación e intente nuevamente.',
+            ], 400);
+        }
+
+        /* Captcha passed: only now count this submission against the shared limits. */
+        foreach ($shared as $name => [$rule, $message]) {
+            if (yns_rate_limited($name, $rule)) {
+                yns_json(['ok' => false, 'message' => $message], 429);
+            }
+        }
+    }
+
     /* Limit of this specific endpoint: only valid submissions count. */
     $rule = yns_limit_for($bucket);
+    $rule['fail_closed'] = $strict;
     if (yns_rate_limited($bucket, $rule)) {
         yns_json([
             'ok'      => false,
@@ -495,5 +711,22 @@ function yns_guard(string $bucket, array $errors = [], array $options = []): voi
                 ? $rule['message']
                 : 'Ha enviado demasiadas solicitudes desde esta conexión. Espere unos minutos o escríbanos por WhatsApp.',
         ], 429);
+    }
+
+    /* Claims form: per-IP daily cap and site-wide caps against distributed spam. */
+    if ($strict) {
+        $caps = [
+            [$bucket . '_ip_day',    true,  'Se alcanzó el límite diario de hojas desde esta conexión. Escríbanos por WhatsApp para atenderlo de inmediato.'],
+            [$bucket . '_site_hour', false, 'El Libro de Reclamaciones recibió muchas solicitudes en este momento. Inténtelo más tarde o escríbanos por WhatsApp.'],
+            [$bucket . '_site_day',  false, 'El Libro de Reclamaciones recibió muchas solicitudes en este momento. Inténtelo más tarde o escríbanos por WhatsApp.'],
+        ];
+        foreach ($caps as [$name, $perIp, $message]) {
+            $cap = yns_limit_for($name);
+            $cap['per_ip']      = $perIp;
+            $cap['fail_closed'] = true;
+            if (yns_rate_limited($name, $cap)) {
+                yns_json(['ok' => false, 'message' => $message], 429);
+            }
+        }
     }
 }

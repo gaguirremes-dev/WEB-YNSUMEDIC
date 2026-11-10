@@ -128,7 +128,7 @@
 
       <div class="recl-layout">
         <div class="reveal">
-          <form id="recl-form" action="api/reclamaciones.php" method="post" data-ajax
+          <form id="recl-form" action="api/reclamaciones.php" method="post" data-ajax data-token-url="api/reclamaciones.php?token=1"
                 data-success-title="Hoja registrada correctamente"
                 data-success-msg="Conserve el número de constancia. La respuesta se enviará al correo indicado en un plazo máximo de 30 días calendario."
                 novalidate aria-label="Formulario del Libro de Reclamaciones Virtual">
@@ -137,7 +137,7 @@
             <noscript>
               <div class="form-alert form-alert--err" style="display:flex">
                 <div>Este formulario necesita JavaScript. También puede solicitar el formato en
-                  <a href="mailto:comercial@ynsumedic.com">comercial@ynsumedic.com</a> o desde la página de
+                  <a href="mailto:reclamaciones@ynsumedic.com">reclamaciones@ynsumedic.com</a> o desde la página de
                   <a href="contacto.html">Contacto</a>.</div>
               </div>
             </noscript>
@@ -292,6 +292,9 @@
               </div>
             </fieldset>
 
+            <!-- hCaptcha: rendered by js/main.js with the public key from api/reclamaciones.php?token=1 -->
+            <div class="recl-captcha" data-captcha-slot aria-label="Verificación anti-robots"></div>
+
             <button type="submit" class="btn btn-green btn-lg" style="width:100%">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               Registrar hoja en el Libro
@@ -318,7 +321,7 @@
           <div class="recl-card">
             <h2>Canales de atención</h2>
             <p>
-              Correo: <a href="mailto:comercial@ynsumedic.com" data-cfg="email">comercial@ynsumedic.com</a><br>
+              Correo: <a href="mailto:reclamaciones@ynsumedic.com">reclamaciones@ynsumedic.com</a><br>
               Teléfono / WhatsApp: <a href="tel:+51943704298" data-cfg="phone">943 704 298</a><br>
               Horario: <span data-cfg="hours">Lun–Vie: 8:00 am – 6:00 pm</span>
             </p>
@@ -338,10 +341,15 @@
 <footer class="footer">
   <div class="container">
     <div class="foot-aviso">
-      <a class="libro-aviso" href="reclamaciones.html" data-cfg="libro" aria-label="Libro de Reclamaciones Virtual de YNSUMEDIC">
-        <img src="assets/img/aviso-virtual-libro.png" alt="Aviso virtual del Libro de Reclamaciones" width="62" height="62" loading="lazy">
-        <span class="libro-aviso-tx"><strong>Libro de Reclamaciones</strong><small>Aviso virtual</small></span>
-      </a>
+      <div class="libro-card-wrap">
+        <a class="libro-card" href="reclamaciones.html" data-cfg="libro" aria-label="Libro de Reclamaciones Virtual de YNSUMEDIC">
+          <picture>
+            <source srcset="assets/img/libro-reclamaciones-card.webp" type="image/webp">
+            <img src="assets/img/libro-reclamaciones-card.png" alt="Libro de Reclamaciones virtual – INDECOPI" width="600" height="600" loading="lazy" decoding="async">
+          </picture>
+        </a>
+        <a class="libro-card-mail" href="mailto:reclamaciones@ynsumedic.com">reclamaciones@ynsumedic.com</a>
+      </div>
     </div>
     <nav class="foot-social" aria-label="Redes sociales" style="justify-content:center;margin-top:1.5rem">
       <a href="https://www.facebook.com/profile.php?id=61590267059171" data-cfg="social" data-network="facebook" target="_blank" rel="noopener" class="foot-soc-link" aria-label="Facebook YNSUMEDIC">
@@ -379,5 +387,6 @@
 <button id="btt" class="btt" aria-label="Volver arriba"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 15l-6-6-6 6"/></svg></button>
 <script src="/js/site-config.js?v=20261109" defer></script>
 <script src="/js/main.js?v=20261109" defer></script>
+<script src="https://js.hcaptcha.com/1/api.js?render=explicit&amp;onload=ynsCaptchaReady" async defer></script>
 </body>
 </html>

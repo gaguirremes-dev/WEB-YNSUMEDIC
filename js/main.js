@@ -206,6 +206,22 @@ function initAjaxForms() {
       form.appendChild(ts);
     }
 
+    /* Forms with data-token-url get a server-signed token (HMAC) that
+       proves when the form was loaded; the server rejects forged or stale ones. */
+    if (form.dataset.tokenUrl && !form.querySelector('input[name="form_token"]')) {
+      const tokenField = document.createElement('input');
+      tokenField.type = 'hidden';
+      tokenField.name = 'form_token';
+      form.appendChild(tokenField);
+      fetch(form.dataset.tokenUrl, { cache: 'no-store', credentials: 'same-origin' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d && d.token) tokenField.value = d.token;
+          if (d && d.captcha_sitekey) setupCaptcha(form, d.captcha_sitekey);
+        })
+        .catch(() => { /* the server will ask to reload the page */ });
+    }
+
     form.querySelectorAll('.form-ctrl').forEach((field) => {
       field.addEventListener('blur', () => validateField(field, form));
       field.addEventListener('input', () => clearFieldError(field, form));
@@ -222,6 +238,37 @@ function initAjaxForms() {
     });
   });
 }
+
+/* ── hCaptcha (forms with a [data-captcha-slot] container) ──
+   The public site key comes from the token endpoint; the widget is rendered
+   once both the key and the hCaptcha script (api.js) are available. */
+const captchaState = new WeakMap();
+
+function setupCaptcha(form, siteKey) {
+  const slot = form.querySelector('[data-captcha-slot]');
+  if (!slot) return;
+  const state = captchaState.get(form) || { id: null, key: '' };
+  state.key = siteKey;
+  captchaState.set(form, state);
+  renderCaptcha(form);
+}
+
+function renderCaptcha(form) {
+  const state = captchaState.get(form);
+  const slot = form.querySelector('[data-captcha-slot]');
+  if (!state || !slot || state.id !== null || !window.hcaptcha) return;
+  state.id = window.hcaptcha.render(slot, { sitekey: state.key, theme: 'light' });
+}
+
+function resetCaptcha(form) {
+  const state = captchaState.get(form);
+  if (state && state.id !== null && window.hcaptcha) window.hcaptcha.reset(state.id);
+}
+
+/* api.js calls this once loaded (render=explicit&onload=ynsCaptchaReady) */
+window.ynsCaptchaReady = () => {
+  document.querySelectorAll('form[data-ajax]').forEach(renderCaptcha);
+};
 
 async function submitAjaxForm(form) {
   clearAlert(form);
@@ -241,6 +288,19 @@ async function submitAjaxForm(form) {
     return;
   }
 
+  /* hCaptcha: a token is required before sending (single use) */
+  const captchaSlot = form.querySelector('[data-captcha-slot]');
+  let captchaToken = '';
+  if (captchaSlot) {
+    const cs = captchaState.get(form);
+    captchaToken = cs && cs.id !== null && window.hcaptcha ? window.hcaptcha.getResponse(cs.id) : '';
+    if (!captchaToken) {
+      showAlert(form, 'Marque la casilla de verificación para confirmar que es una persona.');
+      captchaSlot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+  }
+
   const endpoint = form.getAttribute('action') || form.dataset.endpoint;
   if (!endpoint) {
     showAlert(form, 'No se configuró el destino del formulario.');
@@ -257,6 +317,7 @@ async function submitAjaxForm(form) {
   try {
     const data = new FormData(form);
     if (!data.has('page')) data.append('page', location.pathname + location.search);
+    if (captchaToken) data.set('h-captcha-response', captchaToken);
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -275,6 +336,7 @@ async function submitAjaxForm(form) {
     }
 
     if (!response.ok || !payload.ok) {
+      resetCaptcha(form); // the hCaptcha token is single use
       if (payload.errors) {
         Object.entries(payload.errors).forEach(([name, message]) => {
           markServerError(form, name, message);
@@ -294,6 +356,7 @@ async function submitAjaxForm(form) {
 
     showFormSuccess(form, payload);
   } catch (error) {
+    resetCaptcha(form);
     showAlert(form, 'No se pudo conectar con el servidor. Revise su conexión o escríbanos por WhatsApp.');
   } finally {
     if (button && document.body.contains(button)) {
